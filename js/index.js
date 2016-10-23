@@ -5,13 +5,14 @@ var mouse, raycaster, isShiftDown = false;
 
 var rollOverMesh, rollOverMaterial;
 var cubeGeo, cubeMaterial;
+var controls;
 
 var objects = [];
 
 const VOXEL_SIZE = 10;
 
 init();
-render();
+animate();
 
 function init() {
 
@@ -27,36 +28,39 @@ function init() {
     container.appendChild( info );
 
     camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 10000 );
-    camera.position.set( 500, 800, 1300 );
+    camera.position.set( 800, 700, 1000 );
     camera.lookAt( new THREE.Vector3() );
 
     scene = new THREE.Scene();
 
+
+
     // roll-over helpers
 
-    rollOverGeo = new THREE.BoxGeometry( 50, 50, 50 );
+    rollOverGeo = new THREE.BoxGeometry( VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE );
     rollOverMaterial = new THREE.MeshBasicMaterial( { color: 0xff0000, opacity: 0.5, transparent: true } );
     rollOverMesh = new THREE.Mesh( rollOverGeo, rollOverMaterial );
     scene.add( rollOverMesh );
 
     // cubes
 
-    cubeGeo = new THREE.BoxGeometry( 50, 50, 50 );
-    cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xfeb74c, map: new THREE.TextureLoader().load( "textures/square-outline-textured.png" ) } );
+    cubeGeo = new THREE.BoxGeometry( VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE );
+    cubeMaterial = new THREE.MeshLambertMaterial( { color: 0xfeb74c } );
 
     // grid
 
-    var size = 500, step = 50;
+    var size = VOXEL_SIZE * 50;
+    var step = VOXEL_SIZE;
 
     var geometry = new THREE.Geometry();
 
-    for ( var i = - size; i <= size; i += step ) {
+    const gridSize = size / 2;
+    for ( var i = - gridSize; i <= gridSize; i += step ) {
+        geometry.vertices.push( new THREE.Vector3( - gridSize, 0, i ) );
+        geometry.vertices.push( new THREE.Vector3(   gridSize, 0, i ) );
 
-        geometry.vertices.push( new THREE.Vector3( - size, 0, i ) );
-        geometry.vertices.push( new THREE.Vector3(   size, 0, i ) );
-
-        geometry.vertices.push( new THREE.Vector3( i, 0, - size ) );
-        geometry.vertices.push( new THREE.Vector3( i, 0,   size ) );
+        geometry.vertices.push( new THREE.Vector3( i, 0, - gridSize ) );
+        geometry.vertices.push( new THREE.Vector3( i, 0,   gridSize ) );
 
     }
 
@@ -70,10 +74,10 @@ function init() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
 
-    var geometry = new THREE.PlaneBufferGeometry( 1000, 1000 );
+    var geometry = new THREE.PlaneBufferGeometry( size, size );
     geometry.rotateX( - Math.PI / 2 );
 
-    plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { visible: false } ) );
+    plane = new THREE.Mesh( geometry, new THREE.MeshBasicMaterial( { color: 0x00ff00, visible: true, transparent: true, opacity: 0.1 } ) );
     scene.add( plane );
 
     objects.push( plane );
@@ -92,6 +96,12 @@ function init() {
     renderer.setPixelRatio( window.devicePixelRatio );
     renderer.setSize( window.innerWidth, window.innerHeight );
     container.appendChild( renderer.domElement );
+
+    controls = new THREE.OrbitControls( camera, renderer.domElement );
+    //controls.addEventListener( 'change', render ); // add this only if there is no animation loop (requestAnimationFrame)
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.25;
+    controls.enableZoom = true;
 
     document.addEventListener( 'mousemove', onDocumentMouseMove, false );
     document.addEventListener( 'mousedown', onDocumentMouseDown, false );
@@ -126,14 +136,10 @@ function onDocumentMouseMove( event ) {
     if ( intersects.length > 0 ) {
 
         var intersect = intersects[ 0 ];
-
         rollOverMesh.position.copy( intersect.point ).add( intersect.face.normal );
-        rollOverMesh.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+        rollOverMesh.position.divideScalar( VOXEL_SIZE ).floor().multiplyScalar( VOXEL_SIZE ).addScalar( VOXEL_SIZE / 2 );
 
     }
-
-    render();
-
 }
 
 function onDocumentMouseDown( event ) {
@@ -168,7 +174,7 @@ function onDocumentMouseDown( event ) {
 
             var voxel = new THREE.Mesh( cubeGeo, cubeMaterial );
             voxel.position.copy( intersect.point ).add( intersect.face.normal );
-            voxel.position.divideScalar( 50 ).floor().multiplyScalar( 50 ).addScalar( 25 );
+            voxel.position.divideScalar(VOXEL_SIZE).floor().multiplyScalar(VOXEL_SIZE).addScalar(VOXEL_SIZE/2);
             scene.add( voxel );
 
             objects.push( voxel );
@@ -201,8 +207,12 @@ function onDocumentKeyUp( event ) {
 
 }
 
+function animate() {
+    requestAnimationFrame( animate );
+    controls.update(); // required if controls.enableDamping = true, or if controls.autoRotate = true
+    render();
+}
+
 function render() {
-
     renderer.render( scene, camera );
-
 }
